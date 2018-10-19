@@ -2,6 +2,7 @@ import json
 import requests
 import time
 import urllib
+import os
 import youtube_dl
 
 TOKEN = '700462758:AAGTGgDfsMCgDlXBwG5y965w7jHVHoxVGAE'
@@ -14,6 +15,7 @@ YDL_OPTS = {
         'preferredcodec': 'mp3',
         'preferredquality': '192',
     }],
+    'outtmpl': '%(id)s.%(ext)s',
 }
 
 def get_url(url):
@@ -48,14 +50,25 @@ def download_all(updates):
         text = update["message"]["text"]
         chat = update["message"]["chat"]["id"]
         print(text)
+        if r'/start' in text:
+            send_message("Welcome to YouTube MP3 downloader chat bot! "
+                         "Share any youtube link here and the downloaded mp3 file will be sent to you.",
+                chat)
+            continue
         with youtube_dl.YoutubeDL(YDL_OPTS) as ydl:
             try:
-                result = ydl.download([text])
-                print(result)
-                send_message("Downloaded", chat)
-            except TypeError: 
-                send_message("Skipped {}".format(text), chat)
-
+                result = ydl.extract_info(text)
+                send_message("Downloaded {}. Sending it to you...".format(result['title']), chat)
+                send_file = "{}.mp3".format(result['id'])
+                if os.path.exists(send_file):
+                    s = send_audio(send_file, chat)
+                if s['ok']: 
+                    os.remove(send_file)
+                else:
+                    send_message("Sending failed! :(", chat)
+            except:
+                send_message("Send me a valid URL and I will download it for you. "
+                    "Dont send me junk!", chat)
 
 def get_last_chat_id_and_text(updates):
     num_updates = len(updates["result"])
@@ -70,6 +83,12 @@ def send_message(text, chat_id):
     url = URL + "sendMessage?text={}&chat_id={}".format(text, chat_id)
     get_url(url)
 
+def send_audio(filepath, chat_id):
+    print("Sending the file: {}".format(filepath))
+    url = URL + "sendAudio?chat_id={}".format(chat_id)
+    files = {'audio': open(filepath, 'rb')}
+    r = requests.post(url, files=files)
+    return json.loads(r.text)
 
 def main():
     last_update_id = None
