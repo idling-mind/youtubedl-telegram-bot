@@ -4,9 +4,10 @@ import time
 from urllib.parse import urlparse
 import os
 import urllib
+import config
 import youtube_dl
 
-TOKEN = '700462758:AAGTGgDfsMCgDlXBwG5y965w7jHVHoxVGAE'
+TOKEN = config.token 
 URL = "https://api.telegram.org/bot{}/".format(TOKEN)
 
 YDL_OPTS = {
@@ -51,10 +52,10 @@ def download_all(updates):
         text = update["message"]["text"]
         chat = update["message"]["chat"]["id"]
         print(text)
-        if r'/start' in text:
+        if text == r'/start':
             send_message("Welcome to YouTube MP3 downloader chat bot! "
-                         "Share any youtube link here and the downloaded mp3 file will be sent to you.",
-                chat)
+                         "Share any youtube link here and the downloaded "
+                         "mp3 file will be sent to you.", chat)
             continue
         if not uri_validator(text):
             send_message("Send me a valid URL and I will download it for you. "
@@ -62,18 +63,29 @@ def download_all(updates):
             continue
         with youtube_dl.YoutubeDL(YDL_OPTS) as ydl:
             try:
-                send_message("Downloading {}".format(text), chat)
+                send_message(
+                    "Downloading and extracting mp3 from {}".format(text), chat)
                 result = ydl.extract_info(text)
-                send_message("Downloaded {}. Sending it to you...".format(result['title']), chat)
-                send_file = "{}.mp3".format(result['id'])
-                if os.path.exists(send_file):
-                    s = send_audio(send_file, chat)
+                send_message(
+                    "Downloaded {}. Sending it to you...".format(result['title']),
+                    chat)
+            except:
+                send_message(
+                    "Could not download the file {}".format(text), 
+                    chat
+                    )
+            try:
+                downloaded_file = "{}.mp3".format(result['id'])
+                file_to_send = fix_filename(result['title'])+".mp3"
+                os.rename(downloaded_file, file_to_send)
+                if os.path.exists(file_to_send):
+                    s = send_audio(file_to_send, chat)
                 if s['ok']: 
-                    os.remove(send_file)
+                    os.remove(file_to_send)
                 else:
                     send_message("Sending failed! :(", chat)
             except:
-                send_message("Couldnt download {}".format(text), chat)
+                send_message("Could not send {}".format(text), chat)
 
 def get_last_chat_id_and_text(updates):
     num_updates = len(updates["result"])
@@ -102,6 +114,12 @@ def uri_validator(x):
     except:
         return False
 
+def fix_filename(filename):
+    keepcharacters = (' ','.','_')
+    return "".join(
+            c for c in filename if c.isalnum() or c in keepcharacters
+        ).replace(" ", "_")
+
 def main():
     last_update_id = None
     while True:
@@ -109,7 +127,6 @@ def main():
         if len(updates["result"]) > 0:
             last_update_id = get_last_update_id(updates) + 1
             download_all(updates)
-        time.sleep(0.5)
 
 
 if __name__ == '__main__':
