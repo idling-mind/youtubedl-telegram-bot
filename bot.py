@@ -9,6 +9,8 @@ import youtube_dl
 
 TOKEN = config.token 
 URL = "https://api.telegram.org/bot{}/".format(TOKEN)
+DESC = config.desription
+HELP = config.help_text
 
 YDL_OPTS = {
     'format': 'bestaudio/best',
@@ -53,9 +55,10 @@ def download_all(updates):
         chat = update["message"]["chat"]["id"]
         print(text)
         if text == r'/start':
-            send_message("Welcome to YouTube MP3 downloader chat bot! "
-                         "Share any youtube link here and the downloaded "
-                         "mp3 file will be sent to you.", chat)
+            send_message(DESC, chat)
+            continue
+        if text == r'/help':
+            send_message(HELP, chat)
             continue
         if not uri_validator(text):
             send_message("Send me a valid URL and I will download it for you. "
@@ -107,6 +110,10 @@ def send_audio(filepath, chat_id):
     r = requests.post(url, files=files)
     return json.loads(r.text)
 
+def send_help(chat_id):
+    url = URL + "sendMessage?text={}&chat_id={}&parse_mode=Markdown".format(HELP, chat_id)
+    get_url(url)
+
 def uri_validator(x):
     try:
         result = urlparse(x)
@@ -127,7 +134,6 @@ def main():
         if len(updates["result"]) > 0:
             last_update_id = get_last_update_id(updates) + 1
             download_all(updates)
-
 
 if __name__ == '__main__':
     main()
