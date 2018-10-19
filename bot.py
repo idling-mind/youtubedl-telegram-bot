@@ -1,8 +1,9 @@
 import json
 import requests
 import time
-import urllib
+from urllib.parse import urlparse
 import os
+import urllib
 import youtube_dl
 
 TOKEN = '700462758:AAGTGgDfsMCgDlXBwG5y965w7jHVHoxVGAE'
@@ -55,8 +56,13 @@ def download_all(updates):
                          "Share any youtube link here and the downloaded mp3 file will be sent to you.",
                 chat)
             continue
+        if not uri_validator(text):
+            send_message("Send me a valid URL and I will download it for you. "
+                "Dont send me junk!", chat)
+            continue
         with youtube_dl.YoutubeDL(YDL_OPTS) as ydl:
             try:
+                send_message("Downloading {}".format(text), chat)
                 result = ydl.extract_info(text)
                 send_message("Downloaded {}. Sending it to you...".format(result['title']), chat)
                 send_file = "{}.mp3".format(result['id'])
@@ -67,8 +73,7 @@ def download_all(updates):
                 else:
                     send_message("Sending failed! :(", chat)
             except:
-                send_message("Send me a valid URL and I will download it for you. "
-                    "Dont send me junk!", chat)
+                send_message("Couldnt download {}".format(text), chat)
 
 def get_last_chat_id_and_text(updates):
     num_updates = len(updates["result"])
@@ -89,6 +94,13 @@ def send_audio(filepath, chat_id):
     files = {'audio': open(filepath, 'rb')}
     r = requests.post(url, files=files)
     return json.loads(r.text)
+
+def uri_validator(x):
+    try:
+        result = urlparse(x)
+        return result.scheme and result.netloc and result.path
+    except:
+        return False
 
 def main():
     last_update_id = None
