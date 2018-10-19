@@ -2,10 +2,19 @@ import json
 import requests
 import time
 import urllib
+import youtube_dl
 
 TOKEN = '700462758:AAGTGgDfsMCgDlXBwG5y965w7jHVHoxVGAE'
 URL = "https://api.telegram.org/bot{}/".format(TOKEN)
 
+YDL_OPTS = {
+    'format': 'bestaudio/best',
+    'postprocessors': [{
+        'key': 'FFmpegExtractAudio',
+        'preferredcodec': 'mp3',
+        'preferredquality': '192',
+    }],
+}
 
 def get_url(url):
     response = requests.get(url)
@@ -34,11 +43,18 @@ def get_last_update_id(updates):
     return max(update_ids)
 
 
-def echo_all(updates):
+def download_all(updates):
     for update in updates["result"]:
         text = update["message"]["text"]
         chat = update["message"]["chat"]["id"]
-        send_message(text, chat)
+        print(text)
+        with youtube_dl.YoutubeDL(YDL_OPTS) as ydl:
+            try:
+                result = ydl.download([text])
+                print(result)
+                send_message("Downloaded", chat)
+            except TypeError: 
+                send_message("Skipped {}".format(text), chat)
 
 
 def get_last_chat_id_and_text(updates):
@@ -61,7 +77,7 @@ def main():
         updates = get_updates(last_update_id)
         if len(updates["result"]) > 0:
             last_update_id = get_last_update_id(updates) + 1
-            echo_all(updates)
+            download_all(updates)
         time.sleep(0.5)
 
 
